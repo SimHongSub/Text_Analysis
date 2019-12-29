@@ -1,6 +1,5 @@
-# 2019.12.29 분석 코드 - AUC : 0.711732118
-
 # -*- coding: utf-8 -*-
+# 2019.12.29 분석 코드 - AUC : 0.711732118
 
 import os
 import pandas as pd  # 데이터 전처리
