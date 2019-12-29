@@ -1,3 +1,5 @@
+# 2019.12.28 분석 코드
+
 import os
 import time
 

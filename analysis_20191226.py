@@ -1,3 +1,5 @@
+# 2019.12.26 분석 코드
+
 import os
 import sys
 import pandas as pd  # 데이터 전처리

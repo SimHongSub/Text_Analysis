@@ -1,3 +1,5 @@
+# 맞춤법 검사 코드
+
 import os
 from hanspell import spell_checker
 import pandas as pd

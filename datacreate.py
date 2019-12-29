@@ -1,3 +1,5 @@
+# 샘플 데이터 추출 코드
+
 import os
 import sys
 import pandas as pd
