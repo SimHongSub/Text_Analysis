@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 2019.12.29 분석 코드 - AUC : 0.711732118
+# 2019.12.30 분석 코드 멀티프로세싱 - AUC :
 
 import os
 import pandas as pd  # 데이터 전처리
@@ -15,77 +15,28 @@ from eunjeon import Mecab  # SHS-형태소분석 라이브러리 추가
 
 from multiprocessing import Process
 
-# stopword 제거 함수
-def get_couple(_words, stopwords):
-   # global stopwords
-    _words = [x for x in _words if x[0] not in stopwords]
-    length = len(_words)
-    for i in range(length - 1):
-        yield _words[i][0], _words[i + 1][0]
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# train_data = pd.read_csv(BASE_DIR+"/data/train.csv")    # 스미싱 데이터(1) : 18703개, 스미싱 데이터 X (0) : 277242개
+train_data = pd.read_csv(BASE_DIR + "/data/modified_data.csv")
+test_data = pd.read_csv(BASE_DIR + "/data/public_test.csv")
+submission_data = pd.read_csv(BASE_DIR + "/data/submission_제출양식.csv")
 
-def start_learning(train_list, tokenizer, v, tfidfTransformer, m1, stopwords):
-    # train 데이터가 모두 학습 될때까지 반복
-    while len(train_list) > 0:
+random.seed(2019)
 
-        if len(train_list) > 37403:
-            selected_list = random.sample(train_list, 37403)   # 메모리 사용률을 고려해서 조금 더 올려도 괜찮을 것 같음
-            train_list = [index for index in train_list if index not in selected_list]
-        else:
-            selected_list = random.sample(train_list, len(train_list))
-            train_list = [index for index in train_list if index not in selected_list]
+tokenizer = Mecab()
 
-        sampling_train_data = train_data.iloc[selected_list, :].reset_index(drop=True)
+# 토큰 인덱싱 객체
+v = CountVectorizer()
 
-        print("train data 토큰화")
-        train_doc = [(tokenizer.pos(x), y) for x, y in tqdm(zip(sampling_train_data['text'], sampling_train_data['smishing']))]
+# TF_IDF 객체
+tfidfTransformer = TfidfTransformer()
 
-        X_train = []  # text 값 리스트
-        Y_train = []  # 각 text에 대한 smishing 값 리스트
+# 나이브 베이스 모델 객체
+m1 = MultinomialNB()
 
-        print("train data 토큰 필요없는 단어리스트 제거, 모형에 사용하기 위한 데이터 전처리")
-        for lwords in train_doc:
-            Y_train.append(lwords[1])
-
-            temp = []
-            for x, y in get_couple(lwords[0], stopwords):
-                temp.append("{}.{}".format(x, y))
-
-            X_train.append(" ".join(temp))
-
-        # print("X_train Data : ")
-        # print(X_train)
-
-        v.fit(X_train)
-
-        vec_x_train = v.transform(X_train).toarray()
-
-        # TF-IDF 행렬
-        tfidfv = tfidfTransformer.fit_transform(vec_x_train)
-
-        m1.fit(tfidfv, Y_train)
-        #m1.fit(vec_x_train, Y_train)
-
-
-def divide_list(list, n):
-    for i in range(0, len(list), n):
-        yield list[i:i+n]
-
-
-if __name__ == '__main__':
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-    # train_data = pd.read_csv(BASE_DIR+"/data/train.csv")    # 스미싱 데이터(1) : 18703개, 스미싱 데이터 X (0) : 277242개
-    train_data = pd.read_csv(BASE_DIR + "/data/modified_data.csv")
-    test_data = pd.read_csv(BASE_DIR + "/data/public_test.csv")
-    submission_data = pd.read_csv(BASE_DIR + "/data/submission_제출양식.csv")
-
-    random.seed(2019)
-
-    train_list = list(train_data['smishing'].index)  # train 데이터 모든 index 리스트
-    selected_list = []  # train 데이터에서 추출된 일부 index 리스트 - 37403개
-    # stopwords = ['XXX', '.', '을', '를', '이', '가', '-', '(', ')', ':', '!', '?', ')-', '.-', 'ㅡ', 'XXXXXX', '..', '.(', '은', '는']  # 필요없는 단어 리스트
-    stopwords = ['XXX', '.', '을', '를', '이', '가', '-', '(', ')', ':', '!', '?', ')-', '.-', 'ㅡ', 'XXXXXX', '..', '.(',
+# stopwords = ['XXX', '.', '을', '를', '이', '가', '-', '(', ')', ':', '!', '?', ')-', '.-', 'ㅡ', 'XXXXXX', '..', '.(', '은', '는']  # 필요없는 단어 리스트
+stopwords = ['XXX', '.', '을', '를', '이', '가', '-', '(', ')', ':', '!', '?', ')-', '.-', 'ㅡ', 'XXXXXX', '..', '.(',
                  '은', '는', '어찌됐든', '그위에', '게다가',
                  '점에서 보아', '비추어 보아', '고려하면', '하게될것이다', '일것이다', '비교적', '좀', '보다더', '비하면', '시키다', '하게하다', '할만하다', '의해서',
                  '연이서', '이어서',
@@ -160,26 +111,77 @@ if __name__ == '__main__':
                  '및', '그에 따르는', '때가 되어', '즉', '지든지', '설령', '가령', '하더라도', '할지라도', '일지라도', '지든지', '몇', '거의', '하마터면', '인젠',
                  '이젠', '된바에야', '된이상', '만큼']
 
-    tokenizer = Mecab()
 
-    # 토큰 인덱싱 객체
-    v = CountVectorizer()
+# stopword 제거 함수
+def get_couple(_words):
+   # global stopwords
+    _words = [x for x in _words if x[0] not in stopwords]
+    length = len(_words)
+    for i in range(length - 1):
+        yield _words[i][0], _words[i + 1][0]
 
-    # TF_IDF 객체
-    tfidfTransformer = TfidfTransformer()
 
-    # 나이브 베이스 모델 객체
-    m1 = MultinomialNB()
+def start_learning(train_list):
+    # train 데이터가 모두 학습 될때까지 반복
+    while len(train_list) > 0:
+
+        if len(train_list) > 37403:
+            selected_list = random.sample(train_list, 37403)   # 메모리 사용률을 고려해서 조금 더 올려도 괜찮을 것 같음
+            train_list = [index for index in train_list if index not in selected_list]
+        else:
+            selected_list = random.sample(train_list, len(train_list))
+            train_list = [index for index in train_list if index not in selected_list]
+
+        sampling_train_data = train_data.iloc[selected_list, :].reset_index(drop=True)
+
+        print("train data 토큰화")
+        train_doc = [(tokenizer.pos(x), y) for x, y in tqdm(zip(sampling_train_data['text'], sampling_train_data['smishing']))]
+
+        X_train = []  # text 값 리스트
+        Y_train = []  # 각 text에 대한 smishing 값 리스트
+
+        print("train data 토큰 필요없는 단어리스트 제거, 모형에 사용하기 위한 데이터 전처리")
+        for lwords in train_doc:
+            Y_train.append(lwords[1])
+
+            temp = []
+            for x, y in get_couple(lwords[0]):
+                temp.append("{}.{}".format(x, y))
+
+            X_train.append(" ".join(temp))
+
+        # print("X_train Data : ")
+        # print(X_train)
+
+        # v.fit(X_train)
+        #
+        # vec_x_train = v.transform(X_train).toarray()
+
+        vec_x_train = v.fit_transform(X_train)
+
+        # TF-IDF 행렬
+        tfidfv = tfidfTransformer.fit_transform(vec_x_train)
+
+        m1.fit(tfidfv, Y_train)
+        #m1.fit(vec_x_train, Y_train)
+
+
+def divide_list(list, n):
+    for i in range(0, len(list), n):
+        yield list[i:i+n]
+
+
+if __name__ == '__main__':
+    train_list = list(train_data['smishing'].index)  # train 데이터 모든 index 리스트
+    selected_list = []  # train 데이터에서 추출된 일부 index 리스트 - 37403개
 
     n = 100000
 
     divide_result = list(divide_list(train_list, n))
 
-    th1 = Process(target=start_learning, args=(divide_result[0], tokenizer, v, tfidfTransformer, m1, stopwords))
-    th2 = Process(target=start_learning, args=(divide_result[1], tokenizer, v, tfidfTransformer, m1, stopwords))
-    th3 = Process(target=start_learning, args=(divide_result[2], tokenizer, v, tfidfTransformer, m1, stopwords))
-
-    #start_learning(train_list, tokenizer, v, tfidfTransformer, m1, stopwords)
+    th1 = Process(target=start_learning, args=(divide_result[0],))
+    th2 = Process(target=start_learning, args=(divide_result[1],))
+    th3 = Process(target=start_learning, args=(divide_result[2],))
 
     th1.start()
     th2.start()
@@ -187,6 +189,8 @@ if __name__ == '__main__':
     th1.join()
     th2.join()
     th3.join()
+
+    #start_learning(train_list)
 
     # test 데이터 분석 시작
     test_data['smishing'] = 2  # smishing 컬럼 추가
@@ -199,17 +203,25 @@ if __name__ == '__main__':
     for lwords in test_doc:
 
         temp = []
-        for x, y in get_couple(lwords[0], stopwords):
+        for x, y in get_couple(lwords[0]):
             temp.append("{}.{}".format(x, y))
 
         X_test.append(" ".join(temp))
 
-    vec_x_test = v.transform(X_test).toarray()
+    #vec_x_test = v.transform(X_test).toarray()
 
-    y_test_pred1 = m1.predict_proba(vec_x_test)
-    y_test_pred1_one = [i[1] for i in y_test_pred1]
+    print(v)
+    print(v.get_feature_names())
+    print(v.vocabulary)
 
-    submission_data['smishing'] = y_test_pred1_one
-
-    submission_data.to_csv("sample_submission.csv", index=False)
+    # vec_x_test = v.transform(X_test)
+    #
+    # tfidf_test = tfidfTransformer.transform(vec_x_test)
+    #
+    # y_test_pred1 = m1.predict_proba(tfidf_test)
+    # y_test_pred1_one = [i[1] for i in y_test_pred1]
+    #
+    # submission_data['smishing'] = y_test_pred1_one
+    #
+    # submission_data.to_csv("sample_submission.csv", index=False)
 
