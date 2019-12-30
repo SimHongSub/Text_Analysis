@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 2019.12.29 분석 코드 - AUC : 0.711732118
+# 2019.12.30 분석 코드 - AUC : 0.88
 
 import os
 import pandas as pd  # 데이터 전처리
@@ -112,18 +112,14 @@ while len(train_list) > 0:
 
         X_train.append(" ".join(temp))
 
-    # print("X_train Data : ")
-    # print(X_train)
-
-    v.fit(X_train)
-
-    vec_x_train = v.transform(X_train).toarray()
+    vec_x_train = v.fit_transform(X_train)
 
     # TF-IDF 행렬
     tfidfv = tfidfTransformer.fit_transform(vec_x_train)
 
     m1.fit(tfidfv, Y_train)
-    #m1.fit(vec_x_train, Y_train)
+
+print(v)
 
 # test 데이터 분석 시작
 test_data['smishing'] = 2  # smishing 컬럼 추가
@@ -141,10 +137,11 @@ for lwords in test_doc:
 
     X_test.append(" ".join(temp))
 
+vec_x_test = v.transform(X_test)
 
-vec_x_test = v.transform(X_test).toarray()
+tfidf_test = tfidfTransformer.transform(vec_x_test)
 
-y_test_pred1 = m1.predict_proba(vec_x_test)
+y_test_pred1 = m1.predict_proba(tfidf_test)
 y_test_pred1_one = [i[1] for i in y_test_pred1]
 
 submission_data['smishing'] = y_test_pred1_one
