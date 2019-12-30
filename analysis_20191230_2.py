@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 2019.12.29 분석 코드 - AUC : 0.711732118
+# 2019.12.30 분석 코드 3-gram - AUC : 0.82
 
 import os
 import pandas as pd  # 데이터 전처리
@@ -84,15 +84,6 @@ def get_couple(_words):
         yield _words[i][0], _words[i + 1][0], _words[i + 2][0]
 
 
-# stopword 제거 함수
-def get_couple_2(_words):
-    global stopwords
-    _words = [x for x in _words if x[0] not in stopwords]
-    length = len(_words)
-    for i in range(length - 1):
-        yield _words[i][0], _words[i + 1][0]
-
-
 # train 데이터가 모두 학습 될때까지 반복
 while len(train_list) > 0:
 
@@ -120,15 +111,6 @@ while len(train_list) > 0:
         temp = []
         for x, y, z in get_couple(lwords[0]):
             temp.append("{}.{}.{}".format(x, y, z))
-
-        X_train.append(" ".join(temp))
-
-    for lwords in train_doc:
-        Y_train.append(lwords[1])
-
-        temp = []
-        for x, y in get_couple_2(lwords[0]):
-            temp.append("{}.{}".format(x, y))
 
         X_train.append(" ".join(temp))
 
@@ -160,15 +142,6 @@ for lwords in test_doc:
         temp.append("{}.{}.{}".format(x, y, z))
 
     X_test.append(" ".join(temp))
-
-for lwords in test_doc:
-
-    temp = []
-    for x, y in get_couple_2(lwords[0]):
-        temp.append("{}.{}".format(x, y))
-
-    X_test.append(" ".join(temp))
-
 
 vec_x_test = v.transform(X_test).toarray()
 
