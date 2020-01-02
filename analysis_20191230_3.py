@@ -13,7 +13,11 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB  # model 관련
 from eunjeon import Mecab  # SHS-형태소분석 라이브러리 추가
 
+from multiprocessing import Manager
 from multiprocessing import Process
+
+import time
+start_time = time.time()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -121,12 +125,13 @@ def get_couple(_words):
         yield _words[i][0], _words[i + 1][0]
 
 
-def start_learning(train_list):
+def start_learning(id, train_list, return_dict):
     # train 데이터가 모두 학습 될때까지 반복
+
     while len(train_list) > 0:
 
-        if len(train_list) > 37403:
-            selected_list = random.sample(train_list, 37403)   # 메모리 사용률을 고려해서 조금 더 올려도 괜찮을 것 같음
+        if len(train_list) > 100000:  # 37403
+            selected_list = random.sample(train_list, 100000)
             train_list = [index for index in train_list if index not in selected_list]
         else:
             selected_list = random.sample(train_list, len(train_list))
@@ -136,6 +141,8 @@ def start_learning(train_list):
 
         print("train data 토큰화")
         train_doc = [(tokenizer.pos(x), y) for x, y in tqdm(zip(sampling_train_data['text'], sampling_train_data['smishing']))]
+
+        # print(train_doc)
 
         X_train = []  # text 값 리스트
         Y_train = []  # 각 text에 대한 smishing 값 리스트
@@ -150,20 +157,10 @@ def start_learning(train_list):
 
             X_train.append(" ".join(temp))
 
-        # print("X_train Data : ")
-        # print(X_train)
+        return_dict[str(id)+'_X'] = X_train
+        return_dict[str(id)+'_Y'] = Y_train
 
-        # v.fit(X_train)
-        #
-        # vec_x_train = v.transform(X_train).toarray()
-
-        vec_x_train = v.fit_transform(X_train)
-
-        # TF-IDF 행렬
-        tfidfv = tfidfTransformer.fit_transform(vec_x_train)
-
-        m1.fit(tfidfv, Y_train)
-        #m1.fit(vec_x_train, Y_train)
+    print(str(id) + " : 전처리 끝")
 
 
 def divide_list(list, n):
@@ -172,6 +169,7 @@ def divide_list(list, n):
 
 
 if __name__ == '__main__':
+
     train_list = list(train_data['smishing'].index)  # train 데이터 모든 index 리스트
     selected_list = []  # train 데이터에서 추출된 일부 index 리스트 - 37403개
 
@@ -179,19 +177,28 @@ if __name__ == '__main__':
 
     divide_result = list(divide_list(train_list, n))
 
-    th1 = Process(target=start_learning, args=(divide_result[0],))
-    th2 = Process(target=start_learning, args=(divide_result[1],))
-    th3 = Process(target=start_learning, args=(divide_result[2],))
+    manager = Manager()
+    return_dict = manager.dict()
+    jobs = []
 
-    th1.start()
-    th2.start()
-    th3.start()
-    th1.join()
-    th2.join()
-    th3.join()
+    for i in range(3):
+        p = Process(target=start_learning, args=(i, divide_result[i], return_dict,))
+        jobs.append(p)
+        p.start()
 
-    #start_learning(train_list)
+    j = 0
+    for proc in jobs:
+        proc.join()
 
+        vec_x_train = v.fit_transform(return_dict.get(str(j)+'_X'))
+
+        # TF-IDF 행렬
+        tfidfv = tfidfTransformer.fit_transform(vec_x_train)
+
+        m1.fit(tfidfv, return_dict.get(str(j)+'_Y'))
+        j += 1
+
+    print('test 분석 시작')
     # test 데이터 분석 시작
     test_data['smishing'] = 2  # smishing 컬럼 추가
 
@@ -208,20 +215,16 @@ if __name__ == '__main__':
 
         X_test.append(" ".join(temp))
 
-    #vec_x_test = v.transform(X_test).toarray()
+    vec_x_test = v.transform(X_test)
 
-    print(v)
-    print(v.get_feature_names())
-    print(v.vocabulary)
+    tfidf_test = tfidfTransformer.transform(vec_x_test)
 
-    # vec_x_test = v.transform(X_test)
-    #
-    # tfidf_test = tfidfTransformer.transform(vec_x_test)
-    #
-    # y_test_pred1 = m1.predict_proba(tfidf_test)
-    # y_test_pred1_one = [i[1] for i in y_test_pred1]
-    #
-    # submission_data['smishing'] = y_test_pred1_one
-    #
-    # submission_data.to_csv("sample_submission.csv", index=False)
+    y_test_pred1 = m1.predict_proba(tfidf_test)
+    y_test_pred1_one = [i[1] for i in y_test_pred1]
+
+    submission_data['smishing'] = y_test_pred1_one
+
+    submission_data.to_csv("sample_submission.csv", index=False)
+
+    print("실행 시간 : " + str(time.time() - start_time))
 

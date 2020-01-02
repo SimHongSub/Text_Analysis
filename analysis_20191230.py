@@ -13,6 +13,10 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB  # model 관련
 from eunjeon import Mecab  # SHS-형태소분석 라이브러리 추가
 
+import time
+
+start_time = time.time()
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # train_data = pd.read_csv(BASE_DIR+"/data/train.csv")    # 스미싱 데이터(1) : 18703개, 스미싱 데이터 X (0) : 277242개
@@ -85,8 +89,8 @@ def get_couple(_words):
 # train 데이터가 모두 학습 될때까지 반복
 while len(train_list) > 0:
 
-    if len(train_list) > 37403:
-        selected_list = random.sample(train_list, 37403)   # 메모리 사용률을 고려해서 조금 더 올려도 괜찮을 것 같음
+    if len(train_list) > 100000:
+        selected_list = random.sample(train_list, 100000)   # 메모리 사용률을 고려해서 조금 더 올려도 괜찮을 것 같음
         train_list = [index for index in train_list if index not in selected_list]
     else:
         selected_list = random.sample(train_list, len(train_list))
@@ -147,4 +151,6 @@ y_test_pred1_one = [i[1] for i in y_test_pred1]
 submission_data['smishing'] = y_test_pred1_one
 
 submission_data.to_csv("sample_submission.csv", index=False)
+
+print("실행 시간 : " + str(time.time() - start_time))
 
