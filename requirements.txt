@@ -14,7 +14,7 @@ kiwisolver==1.1.0
 matplot==0.1.9
 matplotlib==3.1.2
 more-itertools==8.0.2
-numpy==1.18.0
+numpy==1.22.0
 pandas==0.25.3
 pip-reqs==0.8.3
 pip-requ==0.180.7
